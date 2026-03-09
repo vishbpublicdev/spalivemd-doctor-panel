@@ -1,0 +1,80 @@
+.green-row {
+    background-color: #99ff99; 
+}
+.yellow-row {
+    background-color: #ffff99; 
+}
+.orange-row {
+    background-color: #ffcc99; 
+}
+.red-row {
+    background-color: #ff9999; 
+}
+
+.x-tab-bar-default {
+    background-color: #1D6782;
+}
+.x-panel-default {
+    border-color: #1D6782;
+}
+.x-action-col-icon{
+    color: #95a1b1;
+}
+
+.x-window-default {
+    border-color: #1D6782;
+}
+.x-window-header-default-top{
+    background-color: #1D6782;
+    border-color: #1D6782;
+}
+.x-window-header-default {
+    border-color: #1D6782;
+    background-color: #1D6782;
+}
+.x-panel-header-default {
+    background-color: #1D6782;
+    border: 1px solid #1D6782;
+}
+.x-window-body-default {
+    border-color: #1D6782;
+}
+.x-btn-default-small{
+    border-color: #1D6782;
+    background-color: #1D6782;
+}
+
+.x-form-text-default{
+    font-weight: 400;
+}
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+    color: #989090;
+    opacity: 1; /* Firefox */
+    font-weight: 300;
+}
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+    color: #989090;
+    font-weight: 300;
+}
+::-ms-input-placeholder { /* Microsoft Edge */
+    color: #989090;
+    font-weight: 300;
+}
+.x-tree-elbow-plus, .x-tree-elbow-end-plus,
+.x-grid-tree-node-expanded .x-tree-elbow-plus,
+.x-grid-tree-node-expanded .x-tree-elbow-end-plus{
+    color: #8D9AAC;
+}
+.x-tree-icon-leaf,
+.x-tree-icon-parent,
+.x-tree-icon-parent-expanded{
+    color: #1D6782;
+}
+
+.x-form-text-wrap{
+    /* width: 100%; */
+}
+
+.x-window-header-default .x-tool-img {
+    background-color: transparent;
+}

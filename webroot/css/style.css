@@ -1,0 +1,209 @@
+.x-action-col-icon{
+    font-size: 15px;
+    margin-left: 10px;
+}
+.x-action-col-icon:hover{
+    color: #7e8da0;
+}
+
+.tree-permisos .x-grid-item{
+    margin: 7px 0;
+}
+
+.ux-item-disabled{
+    opacity: .5 !important;
+}
+.ux-item-disabled .x-tree-checkbox,
+.ux-item-disabled .x-tree-icon,
+.ux-item-disabled .x-tree-elbow-img
+{
+    color: #a5a5a5 !important;
+}
+.ux-item-disabled .x-tree-checkbox:before {
+    content: "\e613" !important;
+}
+
+.ux-dataview{
+    /* padding: 10px 0 0 0; */
+}
+.ux-dataview .thumb-wrap{
+    height: 100px;
+    color: #585555;
+    padding: 10px 10px 10px 10px;
+}
+.ux-dataview .thumb-wrap:nth-child(even){
+    background-color:#edf0f2;
+}
+.ux-dataview .thumb-wrap.item-over{
+    background: #fef6f6;
+}
+.ux-dataview .thumb-wrap.x-item-selected{
+    color: white;
+    background: #655489;
+}
+.ux-dataview .thumb-wrap h4{
+    margin: 0;
+    padding: 5px 0;
+    font-size: 14px;
+}
+.ux-dataview .thumb-wrap p{
+    margin: 0;
+    padding: 0;
+    line-height: 20px;
+}
+.ux-dataview .thumb-wrap p.detail{
+    margin: 0 5px;
+    font-size: 12px;
+    font-style: italic;
+}
+.ux-dataview .thumb-wrap p.label{
+    font-size: 10px;
+    line-height: 10px;
+    font-weight: 400;
+}
+.ux-dataview .thumb-wrap p.label span{
+    font-weight: bold;
+}
+.ux-dataview .thumb-wrap .info{
+    font-size: 11px;
+}
+.ux-dataview .thumb-wrap .info span{
+    font-weight: 500;
+}
+
+.logo{
+    width: 150px;
+}
+.logo h1{
+    padding: 0;
+    color: #655489;
+    line-height: 48px;
+    margin: 0 0 0 60px;
+}
+
+.tab-content{
+    background-color:#ffff;
+    background-image: url(../img/MySpaLive-logo.png);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20rem;
+}
+
+.table-summary{
+    font-size: 12px;
+    font-weight: 400;
+    text-align: center;
+}
+.table-summary .box1{
+    height: 40px;
+    margin: 5px 0;
+    padding: 0 15px;
+    color: white;
+    background-color: #655489;
+}
+
+.table-info{
+    font-size: 12px;
+}
+.table-info span{
+    font-size: 11px;
+}
+.table-info p{
+    margin: 0;
+    padding: 0;
+    font-weight: 400;
+}
+.table-info td{
+    padding: 5px;
+}
+
+.x-grid-row-summary .x-grid-cell{
+    background-color: #1D6782 !important;
+    color: white;
+    font-weight: bold;
+}
+
+.menu-content{
+    background-color:#1D6782;
+}
+
+.menu-content .x-btn-over{
+    border-color: #1D6782 !important;
+    background-color: #1D6782 !important;
+}
+
+.menu-content .x-btn-default-small-focus{
+    border-color: #1D6782 !important;
+    background-color: #1D6782 !important;
+}
+.menu-content .x-btn-default-small .x-btn-inner{
+    font-family: 'montserrat_bold' !important;
+}
+
+.agreement-btn-font .x-btn-inner{
+    font-family: 'montserrat_bold' !important;   
+}
+
+.injectors-bbar .x-btn-inner-default-toolbar-small {
+    color: white !important;
+}
+
+.cert-link{
+    background-color: #655489;
+    color: white;
+    border-radius: 12px;
+    font-family: 'montserrat_semibold';
+    text-decoration: none;
+    font-size: 11px;
+    padding: 5px 12px;
+    margin-left: 8px;
+}
+.cert-link:hover{
+    background-color: #9181b1;
+}
+
+.gfe-link{
+    background-color: #EB7AA8;
+    color: white;
+    border-radius: 12px;
+    font-family: 'montserrat_semibold';
+    text-decoration: none;
+    font-size: 11px;
+    padding: 5px 12px;
+    margin-left: 8px;
+}
+.gfe-link:hover{
+    background-color: #f5adca;
+}
+
+@charset "UTF-8";
+:root {
+  --star-size: 20px;
+  --star-color: #EAEAEA;
+  --star-background: #fc0;
+}
+
+.Stars {
+  --percent: calc(var(--rating) / 5 * 100%);
+  display: inline-block;
+  font-size: var(--star-size);
+  font-family: Times;
+  line-height: 1;
+}
+.Stars::before {
+  content: "★★★★★";
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, var(--star-background) var(--percent), var(--star-color) var(--percent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.item-select-dataview{
+    background-color: #9686B7;
+    color: white;
+    font-weight: bold;
+}
+
+.selection-disabled .x-selmodel-column {
+    visibility: hidden;
+}

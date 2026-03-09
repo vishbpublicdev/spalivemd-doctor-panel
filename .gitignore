@@ -2,6 +2,8 @@
 
 /vendor/*
 /config/app.php
+config/app_local.php
+config/app_local.example.php
 
 /tmp/cache/models/*
 !/tmp/cache/models/empty
@@ -15,6 +17,7 @@
 !/tmp/tests/empty
 
 /logs/*
+!/logs/.gitkeep
 !/logs/empty
 
 # CakePHP 2
@@ -23,3 +26,22 @@
 /app/Config/core.php
 /app/Config/database.php
 /vendors/*
+
+/config/.env
+.env
+
+/tmp/*
+!/tmp/.gitkeep
+
+
+/tmp/assets/*
+!/tmp/assets/empty
+
+*.css.map
+
+/webroot/reportes/*
+.DS_Store
+*.DS_Store
+
+composer.phar
+
