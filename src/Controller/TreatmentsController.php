@@ -49,7 +49,7 @@ class TreatmentsController extends AppController{
         );
 
         $array_data = [];
-        $_fields = ['DataTreatment.id','DataTreatment.payment','DataTreatment.uid','Injector.name','Injector.lname','Patient.uid','Patient.name','Patient.lname','Injector.phone','Injector.email','Payment.total','Payment.promo_code','DataTreatment.amount','DataTreatment.schedule_date','DataTreatment.status','Notes.notes','State.name','Review.score','Review.id','Doctor.name', 'DataTreatment.approved', 'DataTreatment.patient_id', 'DataTreatment.address','DataTreatment.city','DataTreatment.zip','DataTreatment.suite','GFE.id','GFE.assitance'];
+        $_fields = ['DataTreatment.id','DataTreatment.payment','DataTreatment.uid','Injector.id','Injector.uid','Injector.name','Injector.lname','Patient.uid','Patient.name','Patient.lname','Injector.phone','Injector.email','Payment.total','Payment.promo_code','DataTreatment.amount','DataTreatment.schedule_date','DataTreatment.status','Notes.notes','State.name','Review.score','Review.id','Doctor.name', 'DataTreatment.approved', 'DataTreatment.patient_id', 'DataTreatment.address','DataTreatment.city','DataTreatment.zip','DataTreatment.suite','GFE.id','GFE.assitance'];
         $_fields['_treatments'] = "(SELECT GROUP_CONCAT(CONCAT_WS(' ',DTD.quantity,CT.name)) FROM data_treatment_detail DTD JOIN cat_treatments_ci CT ON CT.id = DTD.cat_treatment_id WHERE DTD.treatment_id = DataTreatment.id AND DTD.quantity > 0)";
         $_fields['_rtreatments'] = "(SELECT GROUP_CONCAT(DISTINCT CT.name) FROM cat_treatments_ci CT WHERE FIND_IN_SET(CT.id,DataTreatment.treatments))";
         $_fields['doctor_notes'] = "(SELECT DN.notes FROM data_trtment_notes_doc DN WHERE DN.treatment_id = DataTreatment.id AND DN.doctor_id = {$user_id} ORDER BY DN.id DESC LIMIT 1)";
@@ -222,6 +222,65 @@ class TreatmentsController extends AppController{
                     );
                     
                 }
+                $this->loadModel('SpaLiveV1.DataTrainings');
+                $trainings_list = [];
+                $ent_trainings = null;
+                if (!empty($row['Injector']['id'])) {
+                    $ent_trainings = $this->DataTrainings->find()->select(['DataTrainings.id','Training.title','Training.scheduled','Training.id','Training.level'])
+                    ->join([
+                        'Training' => ['table' => 'cat_trainings', 'type' => 'INNER', 'conditions' => 'Training.id = DataTrainings.training_id'],
+                    ])->where(['Training.deleted' => 0, 'DataTrainings.user_id' => $row['Injector']['id'], 'DataTrainings.deleted' => 0, 'DataTrainings.attended' => 1])->order(['Training.scheduled' => 'DESC'])->all();
+                }
+                if (!empty($ent_trainings)) {
+                    foreach ($ent_trainings as $row_t) {
+                        if ($row_t['Training']['level'] == 'LEVEL 1-1 NEUROTOXINS') {
+                            continue;
+                        }
+                        if ($row_t['Training']['level'] == 'LEVEL IV') {
+                            $row_t['Training']['level'] = ' IV Therapy';
+                        }
+                        $trainings_list[] = [
+                            'id' => $row_t->id,
+                            'level' => $row_t['Training']['level'],
+                            'title' => $row_t['Training']['title'],
+                            'scheduled' => $row_t['Training']['scheduled'],
+                            'os' => 0,
+                            'id_course' => $row_t->id,
+                            'show' => $row_t['Training']['level'] . ' certificate',
+                            'user_uid' => $row['Injector']['uid'],
+                        ];
+                    }
+                }
+                // Other schools: data_courses for the injector (same tables as TrainingsController::user_grid)
+                if (!empty($row['Injector']['id'])) {
+                    $this->loadModel('SpaLiveV1.DataCourses');
+
+                    $dcFields = ['DataCourses.id', 'DataCourses.status', 'DataCourses.front', 'DataCourses.back', 'CC.id', 'CC.title', 'CC.type', 'DSR.nameschool', 'DataCourses.created'];
+                    $courses = $this->DataCourses->find()->select($dcFields)
+                    ->join([
+                        'CC' => ['table' => 'cat_courses', 'type' => 'INNER', 'conditions' => 'CC.id = DataCourses.course_id'],
+                        'DSR' => ['table' => 'data_school_register', 'type' => 'INNER', 'conditions' => 'DSR.id = CC.school_id'],
+                    ])
+                    ->where(['DataCourses.deleted' => 0, 'DataCourses.user_id' => $row['Injector']['id'], 'CC.deleted' => 0, 'DSR.deleted' => 0, 'DataCourses.status' => 'DONE'])
+                    ->all();
+
+                    foreach ($courses as $item) {
+                        if ($item->status == 'DONE') {
+                            $trainings_list[] = [
+                                'id' => $item->id,
+                                'level' => $item['CC']['type'],
+                                'school_name' => $item['DSR']['nameschool'],
+                                'course_name' => $item['CC']['title'],
+                                'status' => 'APPROVED',
+                                'title' => $item['CC']['title'],
+                                'os' => 1,
+                                'id_course' => $item['CC']['id'],
+                                'show' => 'Other school ' . $item['CC']['title'] . ' certificate',
+                                'user_uid' => $row['Injector']['uid'],
+                            ];
+                        }
+                    }
+                }
                 $examiner ='';
                 if(!empty($row['GFE']['id']) && !empty($row['GFE']['id'] > 19970)){// started qualiphy
                     if(!empty($row['GFE']['assitan'])){
@@ -258,6 +317,7 @@ class TreatmentsController extends AppController{
                     'tc2' => $arr_ct2,
                     'type_category' => str_replace(',', ', ', (!empty($arr_ct) ? $arr_ct : $arr_ct2)),
                     'agrement' => $result,
+                    'trainings' => $trainings_list,
 
                 );
             }

@@ -158,7 +158,8 @@ Ext.define('Admin.Tab.Treatments', {
                     items: [
                         { iconCls: 'x-fa fa-edit', tooltip: 'Approve/Reject', scope: this, handler: this.node_edit, isDisabled: function(view, rowIndex, colIndex, item, record){ return record.data.approved != 'PENDING'? true : false; } },
                     ]
-                }
+                },
+                { text: ' ', dataIndex: 'trainings', hidden: true, hideable: false, width: 1, sortable: false, type: 'auto' }
             ],tplRowExpand : new Ext.XTemplate(
                `<p><b>Treatments:</b> {treatments}</p>
                     <p><b>Injector\'s Notes :</b> {notes}</p>
@@ -167,7 +168,12 @@ Ext.define('Admin.Tab.Treatments', {
                         <tpl for="certificates">
                             <a class="cert-link" target="blank" href="{[this.get_certificate_url(values)]}">Certificate</a>
                         </tpl>
-                    </p>                                        
+                    </p>
+                    <p><b>Injector Certifications:</b>
+                        <tpl for="trainings">
+                            <a class="gfe-link" target="blank" href="{[this.get_training_certificate_url(values)]}">{show}</a><br/>
+                        </tpl>
+                    </p>
                     <p><tpl for="files">
                             <a target="blank" href="{[this.get_img_url(values)]}"><img style=" margin: 10px;" height="120" width="120" src="{[this.get_img_url(values)]}" /></a>
                         </tpl>
@@ -201,7 +207,17 @@ Ext.define('Admin.Tab.Treatments', {
                         },
                         get_certificate_url: function(values){                                                        
                             return values.certificate_url;                                                                             
-                        },                        
+                        },
+                        get_training_certificate_url: function(values) {
+                            var uid = values.id_course;
+                            var user_uid = values.user_uid;
+                            var os = values.os;
+                            if (!uid) return '';
+                            if (os == 0) {
+                                return App.env_url + '?key=2fe548d5ae881ccfbe2be3f6237d7951&l3n4p=6092482f7ce858.91169218&action=get_training_cert&id=' + uid + '&user_uid=' + user_uid;
+                            }
+                            return App.env_url + '?key=2fe548d5ae881ccfbe2be3f6237d7951&l3n4p=6092482f7ce858.91169218&action=get_training_cert_os&id=' + uid + '&user_uid=' + user_uid;
+                        },
                     }
             ),
         });
