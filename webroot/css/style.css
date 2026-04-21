@@ -176,6 +176,22 @@
     background-color: #f5adca;
 }
 
+.injector-certifications-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+.injector-cert-badges {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.injector-cert-badges .gfe-link {
+    margin-left: 0;
+}
+
 @charset "UTF-8";
 :root {
   --star-size: 20px;

@@ -169,10 +169,12 @@ Ext.define('Admin.Tab.Treatments', {
                             <a class="cert-link" target="blank" href="{[this.get_certificate_url(values)]}">Certificate</a>
                         </tpl>
                     </p>
-                    <p><b>Injector Certifications:</b>
+                    <p class="injector-certifications-row"><b>Injector Certifications:</b>
+                        <span class="injector-cert-badges">
                         <tpl for="trainings">
-                            <a class="gfe-link" target="blank" href="{[this.get_training_certificate_url(values)]}">{show}</a><br/>
+                            <a class="gfe-link" target="blank" href="{[this.get_training_certificate_url(values)]}">{show}</a>
                         </tpl>
+                        </span>
                     </p>
                     <p><tpl for="files">
                             <a target="blank" href="{[this.get_img_url(values)]}"><img style=" margin: 10px;" height="120" width="120" src="{[this.get_img_url(values)]}" /></a>
