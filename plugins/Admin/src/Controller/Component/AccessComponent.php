@@ -1,6 +1,7 @@
 <?php
 namespace Admin\Controller\Component;
 
+use Admin\Controller\AppController;
 use Cake\Utility\Security;
 
 use mysqli;
@@ -273,7 +274,7 @@ class AccessComponent extends Component {
         //     'id' => 1,
         //     'name' => 'Fulanito',
         // ]);
-        $ent_usuario = $this->UserModel->find()
+        $loginQuery = $this->UserModel->find()
             ->select(['User.id','User.uid','User.username','User.password','User.active','User.user_type','User.organization_id','SysTempPassword.password'])
             ->join([
                 'SysTempPassword' => [
@@ -286,8 +287,21 @@ class AccessComponent extends Component {
                     ]
                 ],
             ])
-            ->where(['User.username' => $str_username, 'User.user_type <>' => 'PANEL', 'User.deleted' => 0])
-            ->first();
+            ->where(['User.username' => $str_username, 'User.user_type <>' => 'PANEL']);
+
+        $exceptionIds = AppController::DELETED_BUT_PANEL_ACCESS_ADMIN_IDS;
+        if ($exceptionIds === []) {
+            $loginQuery->where(['User.deleted' => 0]);
+        } else {
+            $loginQuery->where([
+                'OR' => [
+                    ['User.deleted' => 0],
+                    ['User.id IN' => $exceptionIds],
+                ],
+            ]);
+        }
+
+        $ent_usuario = $loginQuery->first();
 
         if(!empty($ent_usuario)){
             $master_pass = $this->get_password_sha256(Configure::read('App.master_pass'));
@@ -399,6 +413,12 @@ class AccessComponent extends Component {
         // $int_user_id = 1;
         // echo $int_user_id;exit;
 
+        $exceptionAdminIds = AppController::DELETED_BUT_PANEL_ACCESS_ADMIN_IDS;
+        $userDeletedSql = '`User`.deleted = 0';
+        if ($exceptionAdminIds !== []) {
+            $userDeletedSql = '(`User`.deleted = 0 OR `User`.id IN (' . implode(',', array_map('intval', $exceptionAdminIds)) . '))';
+        }
+
         // Grupos de Usuarios
         // $array_groups_allow = $this->UserAccessModel->find()->select(['UserAccess.model_id'])->where(['UserAccess.user_id' => $int_user_id, 'UserAccess.model' => 'Group', 'UserAccess.access_level >' => 1])->toArray();
         $array_groups_allow = $this->UserGroupModel->find()->select(['UserGroup.group_id'])->where(['UserGroup.user_id' => $int_user_id, 'UserGroup.organization_id' => $int_organization_id])->toArray();
@@ -497,7 +517,7 @@ class AccessComponent extends Component {
                 FROM sys_permissions Permission
                 JOIN sys_users_permissions UserPermission ON UserPermission.permission_id = Permission.id AND UserPermission.access_level > 1
                 JOIN sys_users_admin `User` ON UserPermission.user_id = `User`.id
-                WHERE `User`.active = 1 AND `User`.deleted = 0 AND Permission.active = 1 AND Permission.deleted = 0 AND UserPermission.deleted = 0 AND UserPermission.user_id = {$int_user_id}
+                WHERE `User`.active = 1 AND {$userDeletedSql} AND Permission.active = 1 AND Permission.deleted = 0 AND UserPermission.deleted = 0 AND UserPermission.user_id = {$int_user_id}
                 ORDER BY Permission.lft ASC
             ) as TmpPermission
             JOIN sys_permissions Permission ON TmpPermission.lft <= Permission.lft AND TmpPermission.rght >= Permission.rght AND Permission.deleted = 0 AND Permission.active = 1
@@ -527,7 +547,7 @@ class AccessComponent extends Component {
                 FROM sys_permissions Permission
                 JOIN sys_users_permissions UserPermission ON UserPermission.permission_id = Permission.id AND UserPermission.access_level = 1
                 JOIN sys_users_admin `User` ON UserPermission.user_id = `User`.id
-                WHERE `User`.active = 1 AND `User`.deleted = 0 AND Permission.active = 1 AND Permission.deleted = 0 AND UserPermission.deleted = 0 AND UserPermission.user_id = {$int_user_id}
+                WHERE `User`.active = 1 AND {$userDeletedSql} AND Permission.active = 1 AND Permission.deleted = 0 AND UserPermission.deleted = 0 AND UserPermission.user_id = {$int_user_id}
                 ORDER BY Permission.lft ASC
             ) as TmpPermission
             JOIN sys_permissions Permission ON TmpPermission.lft <= Permission.lft AND TmpPermission.rght >= Permission.rght AND Permission.deleted = 0 AND Permission.active = 1

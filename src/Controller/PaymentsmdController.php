@@ -7,6 +7,7 @@ namespace App\Controller;
 use Admin\Controller\AppController;
 use Cake\Utility\Security;
 use Cake\Utility\Hash;
+use Exception;
 
 class PaymentsmdController extends AppController
 {
@@ -27,13 +28,33 @@ class PaymentsmdController extends AppController
 
 		// Obtener el mes actual para determinar qué lógica usar
 		$current_month = date('Y-m');
+
+		// Same rules as spalivemd-panel GeneralController::grid_doctors_payments (from 2026-05: pool per service, 25% Craig / 75% Marie).
+		$mdSubscriptionPoolSplitStartMonth = '2026-05';
+		$mdPoolAdminIdCraig = 176;
+		$mdPoolAdminIdMarie = 139;
+		$dbConn = $this->DataPayment->getConnection();
+		$mdPoolDisplayNames = [
+			(string) $mdPoolAdminIdCraig => 'Craig',
+			(string) $mdPoolAdminIdMarie => 'Marie',
+		];
+		foreach ($dbConn->execute(
+			'SELECT id, name FROM sys_users_admin WHERE id IN (' . (int) $mdPoolAdminIdCraig . ',' . (int) $mdPoolAdminIdMarie . ')'
+		)->fetchAll('assoc') as $nr) {
+			if (!empty($nr['name'])) {
+				$mdPoolDisplayNames[(string) $nr['id']] = $nr['name'];
+			}
+		}
+		// JSON/detail path: from current month forward, and from May 2026 onward (so May–Jun appear when viewing July).
+		$jsonPathStartMonth = ($current_month < $mdSubscriptionPoolSplitStartMonth) ? $current_month : $mdSubscriptionPoolSplitStartMonth;
 		
-		// LÓGICA ANTERIOR para meses pasados (mantener números exactos)
+		// LÓGICA ANTERIOR para meses pasados (mantener números exactos) — solo antes de mayo 2026
 		$query2 = "SELECT DATE_FORMAT(DSP.created,'%Y-%m') mes, SUM(DSP.total) total_mes FROM data_subscription_payments DSP
 				  JOIN data_subscriptions DS ON DS.id = DSP.subscription_id AND DS.subscription_type LIKE 'SUBSCRIPTIONMD%'
 				  WHERE DSP.deleted = 0 AND DSP.status = 'DONE' AND DSP.payment_id <> '' AND DSP.md_id > 0 
 				  and DSP.payment_details like '%NEUROTOXINS%' AND DSP.payment_details not like '%IV THERAPY%'
 				  AND DATE_FORMAT(DSP.created,'%Y-%m') < '$current_month'
+				  AND DATE_FORMAT(DSP.created,'%Y-%m') < '{$mdSubscriptionPoolSplitStartMonth}'
 				  GROUP BY DATE_FORMAT(DSP.created,'%Y-%m') ORDER BY DSP.created DESC;";
 
 		$ent_query2 = $this->DataSubscriptions->getConnection()->execute($query2)->fetchAll('assoc');
@@ -74,6 +95,7 @@ class PaymentsmdController extends AppController
 		WHERE DSP.deleted = 0 AND DSP.status = 'DONE' AND DSP.payment_id <> '' AND DSP.md_id > 0  
 		AND DSP.payment_details not like '%NEUROTOXINS%' AND DSP.payment_details like '%IV THERAPY%' AND DSP.payment_details not like '%FILLERS%'
 		AND DATE_FORMAT(DSP.created,'%Y-%m') < '$current_month'
+		AND DATE_FORMAT(DSP.created,'%Y-%m') < '{$mdSubscriptionPoolSplitStartMonth}'
 		GROUP BY DATE_FORMAT(DSP.created,'%Y-%m') ORDER BY DSP.created DESC;";
 
 		$ent_query2_MDIVT = $this->DataSubscriptions->getConnection()->execute($query2)->fetchAll('assoc');
@@ -114,6 +136,7 @@ class PaymentsmdController extends AppController
 		WHERE DSP.deleted = 0 AND DSP.status = 'DONE' AND DSP.payment_id <> '' AND DSP.md_id > 0 
 		AND DSP.payment_details like '%NEUROTOXINS%' AND DSP.payment_details like '%IV THERAPY%'  AND DSP.payment_details not like '%FILLERS%'
 		AND DATE_FORMAT(DSP.created,'%Y-%m') < '$current_month'
+		AND DATE_FORMAT(DSP.created,'%Y-%m') < '{$mdSubscriptionPoolSplitStartMonth}'
 		GROUP BY DATE_FORMAT(DSP.created,'%Y-%m') ORDER BY DSP.created DESC;";
 
 		$ent_query2_md_ivt = $this->DataSubscriptions->getConnection()->execute($query2)->fetchAll('assoc');
@@ -148,7 +171,7 @@ class PaymentsmdController extends AppController
 			}
 		}
 
-		// NUEVA LÓGICA para el mes actual en adelante (con comisiones variables)
+		// JSON payment_details path: current month forward, and all months from May 2026 (aligned with admin panel).
 		$query2_new = "SELECT 
 			DATE_FORMAT(DSP.created,'%Y-%m') as mes, 
 			DSP.total, 
@@ -160,76 +183,76 @@ class PaymentsmdController extends AppController
 		LEFT JOIN sys_users_admin a ON a.id = DSP.md_id
 		WHERE DSP.deleted = 0 AND DSP.status = 'DONE' AND DSP.payment_id <> '' AND DSP.md_id > 0
 		AND DSP.payment_details IS NOT NULL AND DSP.payment_details != ''
-		AND DATE_FORMAT(DSP.created,'%Y-%m') >= '$current_month'
+		AND DATE_FORMAT(DSP.created,'%Y-%m') >= '{$jsonPathStartMonth}'
 		" . $this->getUserConditionForDate('DSP.created') . "
 		ORDER BY DSP.created DESC;";
 
 		// Procesar todos los pagos de suscripciones con agrupación para meses actuales
 		try {
 			$ent_query2_new = $this->DataSubscriptions->getConnection()->execute($query2_new)->fetchAll('assoc');
-			
-			// Array para agrupar por mes, doctor y servicio
+
 			$grouped_payments = [];
-			
+			$pooled_subscription_by_month_service = [];
+
 			foreach ($ent_query2_new as $payment) {
 				$mes = $payment['mes'];
-				$md_id = $payment['md_id'];
+				$use_md_pool_split = ($mes >= $mdSubscriptionPoolSplitStartMonth);
 				$admin_name = $payment['admin_name'];
-				$total_amount = $payment['total'];
 				$payment_details = $payment['payment_details'];
-				
-				// Determinar nombre del doctor - omitir si no tiene nombre
-				if (empty($admin_name)) {
-					continue; // Saltar este pago si no tiene nombre de medical director
+
+				if (!$use_md_pool_split && empty($admin_name)) {
+					continue;
 				}
 				$doctor_name = $admin_name;
-				
-				// Decodificar JSON de payment_details
+
 				$services = json_decode($payment_details, true);
 				if (json_last_error() !== JSON_ERROR_NONE) {
 					continue;
 				}
-				
-				// Si el JSON es un array, tomar el primer elemento
+
 				if (is_array($services) && isset($services[0])) {
 					$services = $services[0];
 				}
-				
-				// Procesar cada servicio en el payment_details
+
 				if (is_array($services)) {
 					foreach ($services as $service_name => $service_amount) {
-						// Convertir el nombre del servicio a un formato más legible
 						$service_display_name = $this->formatServiceName($service_name);
-						
-						// Crear clave única para agrupar: mes + doctor + servicio
-						$group_key = $mes . '|' . $doctor_name . '|' . $service_display_name;
-						
-						// Si ya existe esta combinación, sumar el monto
-						if (isset($grouped_payments[$group_key])) {
-							$grouped_payments[$group_key]['total_amount'] += $service_amount;
+						$addAmount = (float) $service_amount;
+
+						if ($use_md_pool_split) {
+							$pkey = $mes . '|' . $service_display_name;
+							if (!isset($pooled_subscription_by_month_service[$pkey])) {
+								$pooled_subscription_by_month_service[$pkey] = [
+									'mes' => $mes,
+									'service_name' => $service_display_name,
+									'total_amount' => 0,
+								];
+							}
+							$pooled_subscription_by_month_service[$pkey]['total_amount'] += $addAmount;
 						} else {
-							// Crear nueva entrada
-							$grouped_payments[$group_key] = [
-								'mes' => $mes,
-								'doctor_name' => $doctor_name,
-								'service_name' => $service_display_name,
-								'total_amount' => $service_amount
-							];
+							$group_key = $mes . '|' . $doctor_name . '|' . $service_display_name;
+							if (isset($grouped_payments[$group_key])) {
+								$grouped_payments[$group_key]['total_amount'] += $addAmount;
+							} else {
+								$grouped_payments[$group_key] = [
+									'mes' => $mes,
+									'doctor_name' => $doctor_name,
+									'service_name' => $service_display_name,
+									'total_amount' => $addAmount,
+								];
+							}
 						}
 					}
 				}
 			}
-			
-			// Convertir datos agrupados a formato de salida
+
+			$commissionRateCutoff = '2025-09-22';
+
 			foreach ($grouped_payments as $group) {
-				// Determinar la comisión según la fecha
-				$payment_date = $group['mes'] . '-01'; // Asumir primer día del mes
-				$cutoff_date = '2025-09-01'; // Fecha fija de corte: 01 de septiembre de 2025
-				$commission_rate = ($payment_date < $cutoff_date) ? 0.21 : 0.31; // 21% antes del 22 sep 2025, 31% a partir del 22 sep 2025
-				
-				// Calcular el monto con la comisión correspondiente
+				$payment_date = $group['mes'] . '-01';
+				$commission_rate = ($payment_date < $commissionRateCutoff) ? 0.21 : 0.31;
 				$commission_amount = doubleval(($group['total_amount'] / 100) * $commission_rate);
-				
+
 				$arr_return[] = [
 					'Doctor_Uid'			=> '',
 					'Treatment_YearMonth'	=> $group['mes'],
@@ -241,7 +264,36 @@ class PaymentsmdController extends AppController
 					'SortId' => 2
 				];
 			}
-			
+
+			foreach ($pooled_subscription_by_month_service as $group) {
+				$payment_date = $group['mes'] . '-01';
+				$commission_rate = ($payment_date < $commissionRateCutoff) ? 0.21 : 0.31;
+				$commission_amount = doubleval(($group['total_amount'] / 100) * $commission_rate);
+				$mes = $group['mes'];
+				$service_label = $group['service_name'];
+
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> $mdPoolDisplayNames[(string) $mdPoolAdminIdCraig],
+					'Doctor_TotalTreat'		=> $service_label,
+					'Doctor_TotalAmount'	=> doubleval($commission_amount * 0.25),
+					'SortId' => 2
+				];
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> $mdPoolDisplayNames[(string) $mdPoolAdminIdMarie],
+					'Doctor_TotalTreat'		=> $service_label,
+					'Doctor_TotalAmount'	=> doubleval($commission_amount * 0.75),
+					'SortId' => 2
+				];
+			}
+
 		} catch (Exception $e) {
 			error_log("Error en gridDoctorsPayments: " . $e->getMessage());
 			$this->Response->success(false);
@@ -258,29 +310,53 @@ class PaymentsmdController extends AppController
 		$ent_query_3_month = $this->DataSubscriptions->getConnection()->execute($query3month)->fetchAll('assoc');
 
 		foreach ($ent_query_3_month as $key2 => $value3m) {
-			
-			$total = $value3m['total_mes'] / 2;
-			$arr_return[] = [
-				'Doctor_Uid'			=> '',
-				'Treatment_YearMonth'	=> $value3m['mes'],
-				'Treatment_Year'		=> '',
-				'Treatment_Month'		=> '',
-				'Treatment_Doctor'		=> 'Karen Reid-Renner',
-				'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
-				'Doctor_TotalAmount'	=> doubleval(($total) * 21),
-				'SortId' => 2
-			];
+			$mes3 = $value3m['mes'];
+			$pool3m = (float) $value3m['total_mes'] * 21;
 
-			$arr_return[] = [
-				'Doctor_Uid'			=> '',
-				'Treatment_YearMonth'	=> $value3m['mes'],
-				'Treatment_Year'		=> '',
-				'Treatment_Month'		=> '',
-				'Treatment_Doctor'		=> 'Marie',
-				'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
-				'Doctor_TotalAmount'	=> doubleval(($total) * 21),
-				'SortId' => 2
-			];
+			if ($mes3 >= $mdSubscriptionPoolSplitStartMonth) {
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes3,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> $mdPoolDisplayNames[(string) $mdPoolAdminIdCraig],
+					'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
+					'Doctor_TotalAmount'	=> doubleval($pool3m * 0.25),
+					'SortId' => 2
+				];
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes3,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> $mdPoolDisplayNames[(string) $mdPoolAdminIdMarie],
+					'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
+					'Doctor_TotalAmount'	=> doubleval($pool3m * 0.75),
+					'SortId' => 2
+				];
+			} else {
+				$total = $value3m['total_mes'] / 2;
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes3,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> 'Karen Reid-Renner',
+					'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
+					'Doctor_TotalAmount'	=> doubleval($total * 21),
+					'SortId' => 2
+				];
+				$arr_return[] = [
+					'Doctor_Uid'			=> '',
+					'Treatment_YearMonth'	=> $mes3,
+					'Treatment_Year'		=> '',
+					'Treatment_Month'		=> '',
+					'Treatment_Doctor'		=> 'Marie',
+					'Doctor_TotalTreat'		=> 'MD Subscription 3 month',
+					'Doctor_TotalAmount'	=> doubleval($total * 21),
+					'SortId' => 2
+				];
+			}
 		}
 
 		$uniqueDates = array_unique(array_column($arr_return, 'Treatment_YearMonth'));

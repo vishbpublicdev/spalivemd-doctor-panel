@@ -8,6 +8,14 @@ use Cake\Controller\Controller;
 
 class AppController extends Controller
 {
+    /**
+     * sys_users_admin ids allowed to log in and load user-permission SQL even when deleted = 1.
+     * API MD assignment pools still require deleted = 0.
+     *
+     * @var list<int>
+     */
+    public const DELETED_BUT_PANEL_ACCESS_ADMIN_IDS = [159];
+
     public function initialize(): void
     {
         parent::initialize();

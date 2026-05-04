@@ -75,7 +75,7 @@ class TreatmentsController extends AppController{
         //$_fields['Examiner'] = "(SELECT name FROM sys_users join data_consultation dc on dc.patient_id = DataTreatment.patient_id WHERE status = 'CERTIFICATE' ORDER BY dc.id DESC LIMIT 1)";        
 
         $userType = $this->Session->read('_User.user_type');
-        $where = [ 'DataTreatment.status IN' => ['DONE','DONESELFTREATMENT'],'DataTreatment.deleted' => 0,'Doctor.deleted' => 0];
+        $where = [ 'DataTreatment.status IN' => ['DONE','DONESELFTREATMENT'],'DataTreatment.deleted' => 0];
         $where['Patient.name NOT LIKE'] = '%test%';
         $where['Patient.mname NOT LIKE'] = '%test%';
         $where['Patient.lname NOT LIKE'] = '%test%';  
@@ -153,11 +153,16 @@ class TreatmentsController extends AppController{
             'Doctor' => ['table' => 'sys_users_admin','type' => 'INNER','conditions' => 'Doctor.id = DataTreatment.assigned_doctor'],
             'GFE' => ['table' => 'data_consultation','type' => 'LEFT','conditions' => 'GFE.patient_id = DataTreatment.patient_id and GFE.status = "CERTIFICATE"'],
         ];
-        
-        $entity = $this->DataTreatment->find()->select($_fields)->where($where)
+
+        $exceptionDoctorIds = AppController::DELETED_BUT_PANEL_ACCESS_ADMIN_IDS;
+        $doctorWhere = $exceptionDoctorIds === []
+            ? ['Doctor.deleted' => 0]
+            : ['OR' => [['Doctor.deleted' => 0], ['Doctor.id IN' => $exceptionDoctorIds]]];
+
+        $entity = $this->DataTreatment->find()->select($_fields)->where($where)->where($doctorWhere)
         ->join($_join)->order($_order)->limit($limit)->page($page)->having($_having)->all();
 
-        $entity_total = $this->DataTreatment->find()->where($where)->join($_join)->count();
+        $entity_total = $this->DataTreatment->find()->where($where)->where($doctorWhere)->join($_join)->count();
 
         if(!empty($entity)){
             foreach($entity as $row){ $this->log(__LINE__ . ' ' . json_encode($row));
